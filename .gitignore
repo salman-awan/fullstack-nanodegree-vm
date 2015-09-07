@@ -1,0 +1,4 @@
+.vagrant
+.project
+.pydevproject
+*.pyc
