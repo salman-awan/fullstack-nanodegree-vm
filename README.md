@@ -9,8 +9,6 @@ INTRODUCTION
 ------------
 This repository contains the submission for Project 2 of the Udacity Full Stack Devleoper Nanodegree. This project contains code to implement the Swiss system for pairing up players in each round of a tournament. The player info and match results are stored in a relational database.
 
-Your README does not include all the steps required to run the application. For example, it should include:
-
 ENVIRONMENT
 -----------
 This project requires Virtual Box and Vagrant to be installed on your system.
