@@ -130,6 +130,8 @@ def swissPairings():
     """
     standings = playerStandings()
 
+    # swiss pairing algorithm
+    # pairings will be between players with closest win record
     pairings = []
     i = 0
     while i < len(standings):
