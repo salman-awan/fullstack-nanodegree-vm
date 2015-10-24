@@ -2,3 +2,4 @@
 .project
 .pydevproject
 *.pyc
+vagrant/catalog/catalog.db
