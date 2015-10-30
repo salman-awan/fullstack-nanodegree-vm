@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        {% block head %}
+        <meta charset="utf-8">
+        <title>Sal's Item Catalog</title>
+        <!-- Bootstrap 3 -->
+        <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.0/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.0/css/bootstrap-theme.min.css">
+        <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+        <script src="https://netdna.bootstrapcdn.com/bootstrap/3.1.0/js/bootstrap.min.js"></script>
+        <!-- Local -->
+        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+        <script src="{{ url_for('static', filename='catalog.js') }}"></script>
+        {% endblock %}
+    </head>
+    <body>
+        <nav class="navbar navbar-inverse navbar-fixed-top">
+            <div class="container">
+                <div class="navbar-header">
+                    <a class="navbar-brand" href="/">Sal's Item Catalog</a>
+                </div>
+                {% if auth_state %}
+                <div id="navbar" class="navbar-right">
+                    {% if auth_state['username'] %}
+                    <p class="navbar-text">Hello {{ auth_state.username }}!</p>
+                    {% endif %}
+                    <a class="navbar-btn btn btn-success" href="{{ auth_state.url }}" role="button">{{ auth_state.text }}</a>
+                </div>
+                {% endif %}
+            </div>
+        </nav>
+        <div id="content" class="container">
+            {% block content %}
+            {% endblock %}
+        </div>
+        <nav class="navbar navbar-fixed-bottom">
+            <div class="container">
+            <footer class="footer">
+                <p>© Salman Awan 2015</p>
+            </footer>
+            </div>
+        </nav>
+    </body>
+</html>

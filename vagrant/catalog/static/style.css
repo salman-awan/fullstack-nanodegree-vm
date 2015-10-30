@@ -4,6 +4,12 @@ body {
   padding-bottom: 20px;
 }
 
+#signInButton {
+    float: none;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 /* Everything but the jumbotron gets side spacing for mobile first views */
 .header,
 .marketing,
