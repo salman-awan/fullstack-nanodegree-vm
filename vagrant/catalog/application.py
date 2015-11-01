@@ -95,8 +95,9 @@ def gconnect():
     stored_credentials = login_session.get('credentials')
     stored_gplus_id = login_session.get('gplus_id')
     if stored_credentials is not None and gplus_id == stored_gplus_id:
-        response = make_response(json.dumps('Current user is already \
-            connected.'), 200)
+        response = make_response(
+            json.dumps('Current user is already connected.'),
+            200)
         response.headers['Content-Type'] = 'application/json'
         return response
 
@@ -176,19 +177,22 @@ def getItemsForCategoryJson(category_id):
 
 
 @app.route('/')
-@app.route('/catalog/<int:category_id>')
-def getCatalogPage(category_id=0):
+@app.route('/catalog/<category_name>')
+def getCatalogPage(category_name=None):
+    category_id = 0
     categories = session.query(Category).all()
-    if category_id == 0:
-        itemHeading = "Lastest Items"
+    if not category_name:
+        itemHeading = "Latest Items"
         items = session.query(Item).order_by(desc(Item.created_at)).limit(10)
     else:
+        category_id = session.query(Category).filter_by(name=category_name) \
+            .one().id
         items = session.query(Item).filter_by(category_id=category_id).all()
         itemHeading = session.query(Category).filter_by(id=category_id) \
             .one().name + " Items (" + str(len(items)) + ")"
 
     return render_template('catalog.html', categories=categories,
-                           selected_category=category_id,
+                           selected_category_id=category_id,
                            itemHeading=itemHeading, items=items,
                            auth_state=authState())
 
@@ -198,7 +202,7 @@ def addItem():
     categories = session.query(Category).all()
     if request.method == 'POST':
         category = session.query(Category) \
-                   .filter_by(name=request.form['category']).one()
+            .filter_by(name=request.form['category']).one()
         newItem = Item(title=request.form['title'],
                        description=request.form['description'],
                        category=category)
@@ -209,8 +213,8 @@ def addItem():
             session.rollback()
             return render_template('add_or_edit_item.html',
                                    auth_state=authState(),
-                                   item=newItem, cancel_url='/',
-                                   categories=categories,
+                                   item=newItem, return_url='/',
+                                   categories=categories, title='Add Item',
                                    error_msg="Item '" + newItem.title +
                                    "' already exists in category '" +
                                    category.name + "'")
@@ -218,47 +222,79 @@ def addItem():
         return redirect('/')
     else:
         return render_template('add_or_edit_item.html', auth_state=authState(),
-                               cancel_url='/', categories=categories)
+                               return_url='/', categories=categories,
+                               title='Add Item')
 
 
-@app.route('/catalog/<int:category_id>/<int:item_id>')
-def getItemPage(category_id, item_id):
-    category = session.query(Category).filter_by(id=category_id).one()
-    item = session.query(Item).filter_by(id=item_id).one()
+@app.route('/catalog/<category_name>/<item_title>')
+def getItemPage(category_name, item_title):
+    category = session.query(Category).filter_by(name=category_name).one()
+    item = session.query(Item).filter_by(title=item_title,
+                                         category_id=category.id).one()
 
-    return render_template('item.html', category=category, item=item,
+    return render_template('item.html', item=item,
                            auth_state=authState())
 
 
-@app.route('/catalog/<int:category_id>/<int:item_id>/edit', methods=['GET', 'POST'])
-def editItem(category_id, item_id):
+@app.route('/catalog/<category_name>/<item_title>/edit',
+           methods=['GET', 'POST'])
+def editItem(category_name, item_title):
     categories = session.query(Category).all()
-    item = session.query(Item).filter_by(id=item_id).one()
-    cancel_url = url_for('getItemPage', category_id=category_id,
-                         item_id=item_id)
+    category = session.query(Category).filter_by(name=category_name).one()
+    item = session.query(Item).filter_by(title=item_title,
+                                         category_id=category.id).one()
+    return_url = url_for('getItemPage', category_name=category_name,
+                         item_title=item_title)
 
     if request.method == 'POST':
-        category = session.query(Category) \
-           .filter_by(name=request.form['category']).one()
+        new_category = session.query(Category) \
+            .filter_by(name=request.form['category']).one()
         try:
             item.title = request.form['title']
             item.description = request.form['description']
-            item.category = category
+            item.category = new_category
             session.commit()
         except exc.IntegrityError:
             session.rollback()
             return render_template('add_or_edit_item.html',
                                    auth_state=authState(),
-                                   item=item, cancel_url=cancel_url,
-                                   categories=categories,
+                                   item=item, return_url=return_url,
+                                   categories=categories, title='Edit Item',
                                    error_msg="Item '" + item.title +
                                    "' already exists in category '" +
-                                   category.name + "'")
-        return redirect(cancel_url)
+                                   new_category.name + "'")
+        return redirect(return_url)
     else:
         return render_template('add_or_edit_item.html', auth_state=authState(),
-                               item=item, cancel_url=cancel_url,
-                               categories=categories)
+                               item=item, return_url=return_url,
+                               categories=categories, title='Edit Item')
+
+
+@app.route('/catalog/<category_name>/<item_title>/delete',
+           methods=['GET', 'POST'])
+def deleteItem(category_name, item_title):
+    category = session.query(Category).filter_by(name=category_name).one()
+    item = session.query(Item).filter_by(title=item_title,
+                                         category_id=category.id).one()
+    return_url = url_for('getItemPage', category_name=category_name,
+                         item_title=item_title)
+
+    if request.method == 'POST':
+        try:
+            session.delete(item)
+            session.commit()
+        except exc.SQLAlchemyError, e:
+            session.rollback()
+            return render_template('delete.html',
+                                   auth_state=authState(),
+                                   item=item, return_url=return_url,
+                                   error_msg="Item '" + item.title +
+                                   "' could not be deleted. Reason: " +
+                                   str(e))
+        return redirect(url_for('getCatalogPage', category_name=category.name))
+    else:
+        return render_template('delete.html', auth_state=authState(),
+                               item=item, return_url=return_url)
 
 
 def authState():
