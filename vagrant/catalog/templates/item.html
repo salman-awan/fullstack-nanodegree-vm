@@ -9,7 +9,10 @@
         </ol>
         <h2>{{ item.title }}</h2>
         <p><strong>Description:</strong> {{ item.description }}</p>
-        {% if auth_state['username'] %}
+        {% if item.user %}
+        <p><strong>Created by:</strong> {{item.user.name}}</p>
+        {% endif %}
+        {% if auth_state['username'] == item.user.name %}
         <div class="btn-group btn-group-sm" role="group" aria-label="...">
           <a role="button" class="btn btn-default" href="{{url_for('editItem', category_name = item.category.name, item_title = item.title)}}">Edit</a>
           <a role="button" class="btn btn-default" href="{{url_for('deleteItem', category_name = item.category.name, item_title = item.title)}}">Delete</a>

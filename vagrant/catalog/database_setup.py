@@ -23,8 +23,6 @@ class Category(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(80), nullable=False, unique=True)
-    user_id = Column(Integer, ForeignKey('user.id'))
-    user = relationship(User)
 
     @property
     def serialize(self):
@@ -42,8 +40,10 @@ class Item(Base):
     title = Column(String(80), nullable=False)
     description = Column(String(250))
     created_at = Column(DateTime(True), default=datetime.datetime.utcnow)
-    category_id = Column(Integer, ForeignKey('category.id'))
+    category_id = Column(Integer, ForeignKey('category.id'), nullable=False)
     category = relationship(Category)
+    user_id = Column(Integer, ForeignKey('user.id'))
+    user = relationship(User)
 
     __table_args__ = (UniqueConstraint('title', 'category_id'),
                       )

@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, jsonify, url_for, flash
+from flask import Flask, render_template, request, redirect, jsonify, \
+    url_for, flash
 from sqlalchemy import create_engine, desc, exc
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, User, Category, Item
@@ -24,14 +25,18 @@ DBSession = sessionmaker(bind=engine)
 session = DBSession()
 
 
+def random_string():
+    return ''.join(random.choice(string.ascii_uppercase + string.digits)
+                   for x in xrange(32))
+
+
 # Create anti-forgery state token
 @app.route('/login')
 def showLogin():
     return_url = request.args.get('returnUrl')
     if not return_url:
         return_url = '/'
-    state = ''.join(random.choice(string.ascii_uppercase + string.digits)
-                    for x in xrange(32))
+    state = random_string()
     login_session['state'] = state
     # return "The current session state is %s" % login_session['state']
     return render_template('login.html', STATE=state, return_url=return_url)
@@ -111,10 +116,15 @@ def gconnect():
     answer = requests.get(userinfo_url, params=params)
 
     data = answer.json()
-
     login_session['username'] = data['name']
     login_session['picture'] = data['picture']
     login_session['email'] = data['email']
+
+    # see if user exists, if it doesn't make a new one
+    user_id = getUserID(login_session['email'])
+    if not user_id:
+        user_id = createUser(login_session)
+    login_session['user_id'] = user_id
 
     output = ''
     output += '<h1>Welcome, '
@@ -127,6 +137,31 @@ def gconnect():
     flash("you are now logged in as %s" % login_session['username'])
     print "done!"
     return output
+
+
+# User Helper Functions
+
+
+def createUser(login_session):
+    newUser = User(name=login_session['username'], email=login_session[
+                   'email'], picture=login_session['picture'])
+    session.add(newUser)
+    session.commit()
+    user = session.query(User).filter_by(email=login_session['email']).one()
+    return user.id
+
+
+def getUserInfo(user_id):
+    user = session.query(User).filter_by(id=user_id).one()
+    return user
+
+
+def getUserID(email):
+    try:
+        user = session.query(User).filter_by(email=email).one()
+        return user.id
+    except:
+        return None
 
 
 # DISCONNECT - Revoke a current user's token and reset their login_session
@@ -144,14 +179,14 @@ def gdisconnect():
     h = httplib2.Http()
     result = h.request(url, 'GET')[0]
 
-    if result['status'] == '200':
-        # Reset the user's sesson.
-        del login_session['access_token']
-        del login_session['gplus_id']
-        del login_session['username']
-        del login_session['email']
-        del login_session['picture']
+    # Reset the user's sesson.
+    del login_session['access_token']
+    del login_session['gplus_id']
+    del login_session['username']
+    del login_session['email']
+    del login_session['picture']
 
+    if result['status'] == '200':
         response = make_response(json.dumps('Successfully disconnected.'), 200)
         response.headers['Content-Type'] = 'application/json'
         return response
@@ -203,9 +238,10 @@ def addItem():
     if request.method == 'POST':
         category = session.query(Category) \
             .filter_by(name=request.form['category']).one()
+        user = getUserInfo(login_session['user_id'])
         newItem = Item(title=request.form['title'],
                        description=request.form['description'],
-                       category=category)
+                       category=category, user=user)
         try:
             session.add(newItem)
             session.commit()
