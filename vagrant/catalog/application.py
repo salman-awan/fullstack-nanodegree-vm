@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, jsonify, \
-    url_for, flash, Response
+    url_for, flash, Response, abort
 from sqlalchemy import create_engine, desc, exc
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, User, Category, Item
@@ -391,7 +391,22 @@ def authState():
     return auth_state
 
 
+@app.before_request
+def csrf_protect():
+    if request.method == "POST":
+        token = login_session.pop('_csrf_token', None)
+        if not token or token != request.form.get('_csrf_token'):
+            abort(403)
+
+
+def generate_csrf_token():
+    if '_csrf_token' not in login_session:
+        login_session['_csrf_token'] = random_string()
+    return login_session['_csrf_token']
+
+
 if __name__ == '__main__':
     app.secret_key = 'super_secret_key'
     app.debug = True
+    app.jinja_env.globals['csrf_token'] = generate_csrf_token
     app.run(host='0.0.0.0', port=5000)
