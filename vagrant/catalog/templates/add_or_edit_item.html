@@ -9,6 +9,13 @@
                 <input type="text" class="form-control" name="title" id="title" placeholder="Title" value="{%if item %}{{item.title}}{% endif %}" required autofocus>
             </div>
             <div class="form-group">
+                <label for="image_url">Image Url</label>
+                <div class="input-group">
+                    <span class="input-group-addon" id="basic-addon3">http://</span>
+                    <input type="text" class="form-control" name="image_url" id="image_url" placeholder="Image Url" aria-describedby="basic-addon3" value="{%if item and item.image_url%}{{item.image_url}}{% endif %}">
+                </div>
+            </div>
+            <div class="form-group">
                 <label for="description">Description</label>
                 <textarea class="form-control" name="description" id="description" rows="3" placeholder="Description">{%if item %}{{item.description}}{% endif %}</textarea>
             </div>

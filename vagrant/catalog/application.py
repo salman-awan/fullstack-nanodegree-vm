@@ -132,8 +132,8 @@ def gconnect():
     output += '!</h1>'
     output += '<img src="'
     output += login_session['picture']
-    output += ' " style = "width: 300px; height: 300px;border-radius: 150px;\
-        -webkit-border-radius: 150px;-moz-border-radius: 150px;"> '
+    output += (' " style = "width: 300px; height: 300px;border-radius: 150px;'
+               '-webkit-border-radius: 150px;-moz-border-radius: 150px;"> ')
     flash("you are now logged in as %s" % login_session['username'])
     print "done!"
     return output
@@ -144,7 +144,7 @@ def gconnect():
 
 def createUser(login_session):
     newUser = User(name=login_session['username'], email=login_session[
-                   'email'], picture=login_session['picture'])
+                   'email'])
     session.add(newUser)
     session.commit()
     user = session.query(User).filter_by(email=login_session['email']).one()
@@ -198,33 +198,54 @@ def gdisconnect():
         return response
 
 
-@app.route('/category.json')
-def getCategoriesJson():
+@app.route('/catalog.json')
+def getCatalogJson():
+    catalog_dict = {}
+    catalog_dict['categories'] = []
     categories = session.query(Category).all()
-    return jsonify(categories=[c.serialize for c in categories])
+
+    for c in categories:
+        category = c.serialize
+        items = session.query(Item).filter_by(category_id=c.id).all()
+        category['items'] = [i.serialize for i in items]
+        catalog_dict['categories'].append(category)
+
+    return jsonify(catalog_dict)
 
 
-@app.route('/category/<int:category_id>/item.json')
-def getItemsForCategoryJson(category_id):
-    items = session.query(Item).filter_by(
-        category_id=category_id).all()
-    return jsonify(items=[i.serialize for i in items])
+@app.route('/catalog.xml')
+def getCatalogXml():
+    root_node = Element("Categories")
+    categories = session.query(Category).all()
+
+    for c in categories:
+        category_node = c.xml
+        items_node = Element("Items")
+        category_node.append(items_node)
+        items = session.query(Item).filter_by(category_id=c.id).all()
+
+        for i in items:
+            items_node.append(i.xml)
+
+        root_node.append(category_node)
+
+    return tostring(root_node)
 
 
 @app.route('/')
 @app.route('/catalog/<category_name>')
 def getCatalogPage(category_name=None):
     category_id = 0
-    categories = session.query(Category).all()
+    categories = session.query(Category).order_by(Category.name).all()
     if not category_name:
         itemHeading = "Latest Items"
         items = session.query(Item).order_by(desc(Item.created_at)).limit(10)
     else:
         category_id = session.query(Category).filter_by(name=category_name) \
             .one().id
-        items = session.query(Item).filter_by(category_id=category_id).all()
-        itemHeading = session.query(Category).filter_by(id=category_id) \
-            .one().name + " Items (" + str(len(items)) + ")"
+        items = session.query(Item).filter_by(category_id=category_id) \
+            .order_by(Item.title).all()
+        itemHeading = category_name + " Items (" + str(len(items)) + ")"
 
     return render_template('catalog.html', categories=categories,
                            selected_category_id=category_id,
@@ -234,13 +255,14 @@ def getCatalogPage(category_name=None):
 
 @app.route('/catalog/add', methods=['GET', 'POST'])
 def addItem():
-    categories = session.query(Category).all()
+    categories = session.query(Category).order_by(Category.name).all()
     if request.method == 'POST':
         category = session.query(Category) \
             .filter_by(name=request.form['category']).one()
         user = getUserInfo(login_session['user_id'])
         newItem = Item(title=request.form['title'],
                        description=request.form['description'],
+                       image_url=request.form['image_url'],
                        category=category, user=user)
         try:
             session.add(newItem)
@@ -275,8 +297,8 @@ def getItemPage(category_name, item_title):
 @app.route('/catalog/<category_name>/<item_title>/edit',
            methods=['GET', 'POST'])
 def editItem(category_name, item_title):
-    categories = session.query(Category).all()
-    category = session.query(Category).filter_by(name=category_name).one()
+    categories = session.query(Category).order_by(Category.name).all()
+    category, = (c for c in categories if c.name == category_name)
     item = session.query(Item).filter_by(title=item_title,
                                          category_id=category.id).one()
     return_url = url_for('getItemPage', category_name=category_name,
@@ -287,6 +309,7 @@ def editItem(category_name, item_title):
             .filter_by(name=request.form['category']).one()
         try:
             item.title = request.form['title']
+            item.image_url = request.form['image_url']
             item.description = request.form['description']
             item.category = new_category
             session.commit()
@@ -329,7 +352,7 @@ def deleteItem(category_name, item_title):
                                    str(e))
         return redirect(url_for('getCatalogPage', category_name=category.name))
     else:
-        return render_template('delete.html', auth_state=authState(),
+        return render_template('delete_item.html', auth_state=authState(),
                                item=item, return_url=return_url)
 
 
@@ -337,6 +360,7 @@ def authState():
     auth_state = {}
     if 'username' in login_session:
         auth_state['username'] = login_session['username']
+        auth_state['user_id'] = login_session['user_id']
         auth_state['url'] = '/logout'
         auth_state['text'] = 'Logout'
     else:
