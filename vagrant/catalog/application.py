@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, jsonify, \
-    url_for, flash
+    url_for, flash, Response
 from sqlalchemy import create_engine, desc, exc
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, User, Category, Item
@@ -12,6 +12,7 @@ import httplib2
 import json
 from flask import make_response
 import requests
+from xml.etree.ElementTree import Element, tostring
 
 app = Flask(__name__)
 
@@ -205,9 +206,9 @@ def getCatalogJson():
     categories = session.query(Category).all()
 
     for c in categories:
-        category = c.serialize
+        category = c.to_dict
         items = session.query(Item).filter_by(category_id=c.id).all()
-        category['items'] = [i.serialize for i in items]
+        category['items'] = [i.to_dict for i in items]
         catalog_dict['categories'].append(category)
 
     return jsonify(catalog_dict)
@@ -219,17 +220,17 @@ def getCatalogXml():
     categories = session.query(Category).all()
 
     for c in categories:
-        category_node = c.xml
+        category_node = c.to_xml
         items_node = Element("Items")
         category_node.append(items_node)
         items = session.query(Item).filter_by(category_id=c.id).all()
 
         for i in items:
-            items_node.append(i.xml)
+            items_node.append(i.to_xml)
 
         root_node.append(category_node)
 
-    return tostring(root_node)
+    return Response(tostring(root_node), mimetype='text/xml')
 
 
 @app.route('/')
@@ -255,6 +256,9 @@ def getCatalogPage(category_name=None):
 
 @app.route('/catalog/add', methods=['GET', 'POST'])
 def addItem():
+    if 'username' not in login_session:
+        return redirect('/login')
+
     categories = session.query(Category).order_by(Category.name).all()
     if request.method == 'POST':
         category = session.query(Category) \
@@ -297,10 +301,19 @@ def getItemPage(category_name, item_title):
 @app.route('/catalog/<category_name>/<item_title>/edit',
            methods=['GET', 'POST'])
 def editItem(category_name, item_title):
+    if 'username' not in login_session:
+        return redirect('/login')
+
     categories = session.query(Category).order_by(Category.name).all()
     category, = (c for c in categories if c.name == category_name)
     item = session.query(Item).filter_by(title=item_title,
                                          category_id=category.id).one()
+
+    if item.user_id != login_session['user_id']:
+        return ("<script>function myFunction() {alert('You are not authorized "
+                "to edit this item. Please create your own item in order to "
+                "edit.');}</script><body onload='myFunction()''>")
+
     return_url = url_for('getItemPage', category_name=category_name,
                          item_title=item_title)
 
@@ -332,9 +345,18 @@ def editItem(category_name, item_title):
 @app.route('/catalog/<category_name>/<item_title>/delete',
            methods=['GET', 'POST'])
 def deleteItem(category_name, item_title):
+    if 'username' not in login_session:
+        return redirect('/login')
+
     category = session.query(Category).filter_by(name=category_name).one()
     item = session.query(Item).filter_by(title=item_title,
                                          category_id=category.id).one()
+
+    if item.user_id != login_session['user_id']:
+        return ("<script>function myFunction() {alert('You are not authorized "
+                "to delete this item. Please create your own item in order to "
+                "delete.');}</script><body onload='myFunction()''>")
+
     return_url = url_for('getItemPage', category_name=category_name,
                          item_title=item_title)
 

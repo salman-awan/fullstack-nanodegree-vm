@@ -15,7 +15,7 @@
         {% if item.user %}
         <p><strong>Created by:</strong> {{item.user.name}}</p>
         {% endif %}
-        {% if auth_state['user_id'] == item.user.id %}
+        {% if auth_state['user_id'] and item.user and auth_state['user_id'] == item.user.id %}
         <div class="btn-group btn-group-sm" role="group" aria-label="...">
           <a role="button" class="btn btn-default" href="{{url_for('editItem', category_name = item.category.name, item_title = item.title)}}">Edit</a>
           <a role="button" class="btn btn-default" href="{{url_for('deleteItem', category_name = item.category.name, item_title = item.title)}}">Delete</a>
