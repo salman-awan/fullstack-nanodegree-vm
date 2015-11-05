@@ -15,13 +15,13 @@ DBSession = sessionmaker(bind=engine)
 session = DBSession()
 
 
-# Create soccer category
+# Create Soccer category
 category = Category(name="Soccer")
 
 session.add(category)
 session.commit()
 
-# Create items for soccer category
+# Create items for Soccer category
 item = Item(title="Shinguards", description="Guards for shins",
             category=category,
             image_url=("https://images.rapgenius.com/"
@@ -38,17 +38,85 @@ item = Item(title="Soccer Shoes", description="Shoes for playing soccer",
 session.add(item)
 session.commit()
 
-# Create hockey category
+# Create Hockey category
 category = Category(name="Hockey")
 
 session.add(category)
 session.commit()
 
-# Create items for hockey category
+# Create items for Hockey category
 item = Item(title="Hockey Stick", description="Stick for playing hockey",
             category=category)
 
 session.add(item)
+session.commit()
+
+# Create Basketball category
+category = Category(name="Basketball")
+
+session.add(category)
+session.commit()
+
+# Create Baseball category
+category = Category(name="Baseball")
+
+session.add(category)
+session.commit()
+
+# Create items for Baseball category
+item = Item(title="Bat", description="Bat for playing baseball",
+            category=category)
+
+session.add(item)
+session.commit()
+
+# Create Frisbee category
+category = Category(name="Frisbee")
+
+session.add(category)
+session.commit()
+
+# Create items for Frisbee category
+item = Item(title="Frisbee", category=category)
+
+session.add(item)
+session.commit()
+
+# Create Snowboarding category
+category = Category(name="Snowboarding")
+
+session.add(category)
+session.commit()
+
+# Create items for Snowboarding category
+item = Item(title="Snowboard", category=category)
+
+session.add(item)
+session.commit()
+
+item = Item(title="Goggles",
+            description="Goggles for wearing while snowboarding",
+            category=category)
+
+session.add(item)
+session.commit()
+
+# Create Rock Climbing category
+category = Category(name="Rock Climbing")
+
+session.add(category)
+session.commit()
+
+# Create Foosball category
+category = Category(name="Foosball")
+
+session.add(category)
+session.commit()
+
+# Create Skating category
+category = Category(name="Skating")
+
+session.add(category)
 session.commit()
 
 print "added categories and items in catalog!"
