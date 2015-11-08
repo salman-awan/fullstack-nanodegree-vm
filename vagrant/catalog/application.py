@@ -3,7 +3,6 @@ from flask import Flask, render_template, request, redirect, jsonify, \
 from sqlalchemy import create_engine, desc, exc
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, User, Category, Item
-
 from flask import session as login_session
 import random, string
 from oauth2client.client import flow_from_clientsecrets
@@ -14,6 +13,8 @@ from flask import make_response
 import requests
 from xml.etree.ElementTree import Element, tostring
 
+
+# Initialization code
 app = Flask(__name__)
 
 CLIENT_ID = json.loads(
@@ -26,6 +27,7 @@ DBSession = sessionmaker(bind=engine)
 session = DBSession()
 
 
+# Helper function for generating a random string
 def random_string():
     return ''.join(random.choice(string.ascii_uppercase + string.digits)
                    for x in xrange(32))
@@ -50,6 +52,7 @@ def logout():
     return redirect('/')
 
 
+# Google OAuth connect function
 @app.route('/gconnect', methods=['POST'])
 def gconnect():
     # Validate state token
@@ -141,8 +144,6 @@ def gconnect():
 
 
 # User Helper Functions
-
-
 def createUser(login_session):
     newUser = User(name=login_session['username'], email=login_session[
                    'email'])
@@ -165,7 +166,7 @@ def getUserID(email):
         return None
 
 
-# DISCONNECT - Revoke a current user's token and reset their login_session
+# Google OAuth disconnect function
 @app.route('/gdisconnect')
 def gdisconnect():
         # Only disconnect a connected user.
@@ -199,6 +200,7 @@ def gdisconnect():
         return response
 
 
+# Web method to get catalog data as JSON
 @app.route('/catalog.json')
 def getCatalogJson():
     catalog_dict = {}
@@ -214,6 +216,7 @@ def getCatalogJson():
     return jsonify(catalog_dict)
 
 
+# Web method to get catalog data as XML
 @app.route('/catalog.xml')
 def getCatalogXml():
     root_node = Element("Categories")
@@ -233,6 +236,7 @@ def getCatalogXml():
     return Response(tostring(root_node), mimetype='text/xml')
 
 
+# Web method to display main catalog page
 @app.route('/')
 @app.route('/catalog/<category_name>')
 def getCatalogPage(category_name=None):
@@ -254,6 +258,7 @@ def getCatalogPage(category_name=None):
                            auth_state=authState())
 
 
+# Web method to handle add item requests
 @app.route('/catalog/add', methods=['GET', 'POST'])
 def addItem():
     if 'username' not in login_session:
@@ -261,6 +266,11 @@ def addItem():
 
     categories = session.query(Category).order_by(Category.name).all()
     if request.method == 'POST':
+        # CSRF protection
+        token = login_session.pop('_csrf_token', None)
+        if not token or token != request.form.get('_csrf_token'):
+            abort(403)
+
         category = session.query(Category) \
             .filter_by(name=request.form['category']).one()
         user = getUserInfo(login_session['user_id'])
@@ -288,6 +298,7 @@ def addItem():
                                title='Add Item')
 
 
+# Web method to display item information page
 @app.route('/catalog/<category_name>/<item_title>')
 def getItemPage(category_name, item_title):
     category = session.query(Category).filter_by(name=category_name).one()
@@ -298,6 +309,7 @@ def getItemPage(category_name, item_title):
                            auth_state=authState())
 
 
+# Web method to handle edit existing item requests
 @app.route('/catalog/<category_name>/<item_title>/edit',
            methods=['GET', 'POST'])
 def editItem(category_name, item_title):
@@ -318,6 +330,11 @@ def editItem(category_name, item_title):
                          item_title=item_title)
 
     if request.method == 'POST':
+        # CSRF protection
+        token = login_session.pop('_csrf_token', None)
+        if not token or token != request.form.get('_csrf_token'):
+            abort(403)
+
         new_category = session.query(Category) \
             .filter_by(name=request.form['category']).one()
         try:
@@ -342,6 +359,7 @@ def editItem(category_name, item_title):
                                categories=categories, title='Edit Item')
 
 
+# Web method to handle delete existing item requests
 @app.route('/catalog/<category_name>/<item_title>/delete',
            methods=['GET', 'POST'])
 def deleteItem(category_name, item_title):
@@ -361,6 +379,11 @@ def deleteItem(category_name, item_title):
                          item_title=item_title)
 
     if request.method == 'POST':
+        # CSRF protection
+        token = login_session.pop('_csrf_token', None)
+        if not token or token != request.form.get('_csrf_token'):
+            abort(403)
+
         try:
             session.delete(item)
             session.commit()
@@ -378,6 +401,7 @@ def deleteItem(category_name, item_title):
                                item=item, return_url=return_url)
 
 
+# Helper function to get auth state data to be passed to jinja templates
 def authState():
     auth_state = {}
     if 'username' in login_session:
@@ -391,20 +415,14 @@ def authState():
     return auth_state
 
 
-@app.before_request
-def csrf_protect():
-    if request.method == "POST":
-        token = login_session.pop('_csrf_token', None)
-        if not token or token != request.form.get('_csrf_token'):
-            abort(403)
-
-
+# Generate CSRF protection nonce token
 def generate_csrf_token():
     if '_csrf_token' not in login_session:
         login_session['_csrf_token'] = random_string()
     return login_session['_csrf_token']
 
 
+# Flask app setup
 if __name__ == '__main__':
     app.secret_key = 'super_secret_key'
     app.debug = True

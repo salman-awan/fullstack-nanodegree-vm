@@ -145,6 +145,4 @@ def xstr(s):
 
 
 engine = create_engine('sqlite:///catalog.db')
-
-
 Base.metadata.create_all(engine)
