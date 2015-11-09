@@ -352,6 +352,12 @@ def editItem(category_name, item_title):
                                    error_msg="Item '" + item.title +
                                    "' already exists in category '" +
                                    new_category.name + "'")
+
+        # rebuild the return_url in case the item's category and/or title
+        # have been modified
+        return_url = url_for('getItemPage', category_name=item.category.name,
+                             item_title=item.title)
+
         return redirect(return_url)
     else:
         return render_template('add_or_edit_item.html', auth_state=authState(),
