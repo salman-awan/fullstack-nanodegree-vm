@@ -12,6 +12,7 @@ import json
 from flask import make_response
 import requests
 from xml.etree.ElementTree import Element, tostring
+from functools import wraps
 
 
 # Initialization code
@@ -31,6 +32,17 @@ session = DBSession()
 def random_string():
     return ''.join(random.choice(string.ascii_uppercase + string.digits)
                    for x in xrange(32))
+
+
+# Authentication check function decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in login_session:
+            print(request.url)
+            return redirect('/login?returnUrl=' + request.path)
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 # Create anti-forgery state token
@@ -238,6 +250,7 @@ def getCatalogXml():
 
 # Web method to display main catalog page
 @app.route('/')
+@app.route('/catalog')
 @app.route('/catalog/<category_name>')
 def getCatalogPage(category_name=None):
     category_id = 0
@@ -260,10 +273,8 @@ def getCatalogPage(category_name=None):
 
 # Web method to handle add item requests
 @app.route('/catalog/add', methods=['GET', 'POST'])
+@login_required
 def addItem():
-    if 'username' not in login_session:
-        return redirect('/login')
-
     categories = session.query(Category).order_by(Category.name).all()
     if request.method == 'POST':
         # CSRF protection
@@ -312,10 +323,8 @@ def getItemPage(category_name, item_title):
 # Web method to handle edit existing item requests
 @app.route('/catalog/<category_name>/<item_title>/edit',
            methods=['GET', 'POST'])
+@login_required
 def editItem(category_name, item_title):
-    if 'username' not in login_session:
-        return redirect('/login')
-
     categories = session.query(Category).order_by(Category.name).all()
     category, = (c for c in categories if c.name == category_name)
     item = session.query(Item).filter_by(title=item_title,
@@ -368,10 +377,8 @@ def editItem(category_name, item_title):
 # Web method to handle delete existing item requests
 @app.route('/catalog/<category_name>/<item_title>/delete',
            methods=['GET', 'POST'])
+@login_required
 def deleteItem(category_name, item_title):
-    if 'username' not in login_session:
-        return redirect('/login')
-
     category = session.query(Category).filter_by(name=category_name).one()
     item = session.query(Item).filter_by(title=item_title,
                                          category_id=category.id).one()
